@@ -10,6 +10,8 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
+import java.util.ArrayList;
+
 public class DrawingPad extends View {
     public enum Mode {
         MODE_PEN,
@@ -20,9 +22,10 @@ public class DrawingPad extends View {
     private int mHeight;
     private Vector2D mPosition = new Vector2D();
     private float mScale = 1.0f;
+    private float mStrokeWidth = 10.0f;
     private Vector2D mPreviousTouch = new Vector2D();
 
-    private Path mPath = new Path();
+    private ArrayList<Path> mPaths = new ArrayList<>();
     private Paint mPaint = new Paint();
     private Mode mMode = Mode.MODE_PEN;
 
@@ -44,7 +47,7 @@ public class DrawingPad extends View {
     private void init(Context inContext) {
         mPaint.setColor(Color.RED);
         mPaint.setStyle(Paint.Style.STROKE);
-        mPaint.setStrokeWidth(10.0f);
+        mPaint.setStrokeWidth(mStrokeWidth);
     }
 
     @Override
@@ -52,13 +55,17 @@ public class DrawingPad extends View {
         super.onSizeChanged(w, h, oldw, oldh);
         mWidth = w;
         mHeight = h;
+        mPosition.set(w * 0.5f, h * 0.5f);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         canvas.save();
         canvas.translate(mPosition.x(), mPosition.y());
-        canvas.drawPath(mPath, mPaint);
+        canvas.scale(mScale, mScale);
+        for(Path path : mPaths) {
+            canvas.drawPath(path, mPaint);
+        }
         canvas.restore();
     }
 
@@ -98,7 +105,10 @@ public class DrawingPad extends View {
                 break;
             case MODE_PEN:
                 Vector2D convertedTouch = new Vector2D(inX, inY).subtract(mPosition);
-                mPath.moveTo(convertedTouch.x(), convertedTouch.y());
+                Path path = new Path();
+                convertedTouch.scale(1.0f / mScale);
+                path.moveTo(convertedTouch.x(), convertedTouch.y());
+                mPaths.add(path);
                 break;
         }
         invalidate();
@@ -112,7 +122,9 @@ public class DrawingPad extends View {
                 break;
             case MODE_PEN:
                 Vector2D convertedTouch = new Vector2D(inX, inY).subtract(mPosition);
-                mPath.lineTo(convertedTouch.x(), convertedTouch.y());
+                convertedTouch.scale(1.0f / mScale);
+                Path path = mPaths.get(mPaths.size() - 1);
+                path.lineTo(convertedTouch.x(), convertedTouch.y());
                 break;
         }
         invalidate();
@@ -125,9 +137,16 @@ public class DrawingPad extends View {
                 break;
             case MODE_PEN:
                 Vector2D convertedTouch = new Vector2D(inX, inY).subtract(mPosition);
-                mPath.lineTo(convertedTouch.x(), convertedTouch.y());
+                convertedTouch.scale(1.0f / mScale);
+                Path path = mPaths.get(mPaths.size() - 1);
+                path.lineTo(convertedTouch.x(), convertedTouch.y());
                 break;
         }
+        invalidate();
+    }
+
+    public void setScaleFactor(float inScale) {
+        mScale = inScale;
         invalidate();
     }
 }
